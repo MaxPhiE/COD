@@ -55,18 +55,39 @@ defaultForm expression = do
     [whamlet| ^{defaultCSS} |]
     [whamlet| ^{tabIndentJS} |]
     toWidget [julius| 
-                var isCtrl = false;
-                document.onkeyup = function(event) {
-                    if(event.which == 17) isCtrl = false;
-                }
-                document.onkeydown = function(event) {
-                    if(event.which == 17) isCtrl = true;
-                    if(event.which == 70 && isCtrl == true) {
-                        document.getElementById("formatSubmit").click();
-                        return false;
-                    } else if(event.which == 68 && isCtrl == true) {
-                        document.getElementById("deformatSubmit").click();
-                        return false;
+                -- using HTML5 storage to avoid the problem not having a keydown event in case the page is reloaded
+                if(typeof(Storage)!=="undefined") {
+                    if(!sessionStorage.isCtrl) {
+                        sessionStorage.isCtrl = "false";
+                    }
+                    document.onkeyup = function(event) {
+                        if(event.which == 17) sessionStorage.isCtrl = "false";
+                    }
+                    document.onkeydown = function(event) {
+                        if(event.which == 17) sessionStorage.isCtrl = "true";
+                        if(event.which == 70 && sessionStorage.isCtrl == "true") {
+                            document.getElementById("formatSubmit").click();
+                            return false;
+                        } else if(event.which == 68 && sessionStorage.isCtrl == "true") {
+                            document.getElementById("deformatSubmit").click();
+                            return false;
+                        }
+                    }
+                
+                } else {
+                    var isCtrl = false;
+                    document.onkeyup = function(event) {
+                        if(event.which == 17) isCtrl = false;
+                    }
+                    document.onkeydown = function(event) {
+                        if(event.which == 17) isCtrl = true;
+                        if(event.which == 70 && isCtrl == true) {
+                            document.getElementById("formatSubmit").click();
+                            return false;
+                        } else if(event.which == 68 && isCtrl == true) {
+                            document.getElementById("deformatSubmit").click();
+                            return false;
+                        }
                     }
                 }
              |]
