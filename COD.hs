@@ -1,8 +1,9 @@
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE QuasiQuotes       #-}
-{-# LANGUAGE TemplateHaskell   #-}
-{-# LANGUAGE TypeFamilies      #-}
+{-# LANGUAGE MultiParamTypeClasses  #-}
+{-# LANGUAGE OverloadedStrings      #-}
+{-# LANGUAGE QuasiQuotes            #-}
+{-# LANGUAGE TemplateHaskell        #-}
+{-# LANGUAGE TypeFamilies           #-}
+{-# LANGUAGE ViewPatterns           #-}
 import           Yesod
 import           Data.Text              (Text, unpack)
 import           Control.Applicative    ((<$>))
@@ -13,8 +14,11 @@ import           System.Time            (getClockTime)
 
 
 data COD = COD
+
 mkYesod "COD" [parseRoutes|
 / HomeR GET POST
+/format/#Text FormatR POST
+/deformat/#Text DeformatR POST
 |]
 
 instance Yesod COD
@@ -52,24 +56,10 @@ defaultForm :: String -> Widget
 defaultForm expression = do
     setTitle "COD Format Expressions"
     toWidgetHead [hamlet| <meta http-equiv="content-type" content="text/html; charset=UTF-8"> |]
+    addScriptRemote "http://code.jquery.com/jquery-2.1.3.min.js"
     [whamlet| ^{defaultCSS} |]
     [whamlet| ^{tabIndentJS} |]
-    toWidget [julius|                 
-                var isCtrl = false;
-                document.onkeyup = function(event) {
-                    if(event.which == 17) isCtrl = false;
-                }
-                document.onkeydown = function(event) {
-                    if(event.which == 17) isCtrl = true;
-                    if(event.which == 70 && isCtrl == true) {
-                        document.getElementById("formatSubmit").click();
-                        return false;
-                    } else if(event.which == 68 && isCtrl == true) {
-                        document.getElementById("deformatSubmit").click();
-                        return false;
-                    }
-                }
-             |]
+    [whamlet| ^{transformJS} |]
     [whamlet|
         <h1>COD Format Expressions
         <form method=post>
@@ -77,6 +67,12 @@ defaultForm expression = do
             <input type="submit" id="formatSubmit" name="format" value="format (ctrl+f)">
             <input type="submit" id="deformatSubmit" name="deformat" value="deformat (ctrl+d)">
     |]
+
+postFormatR :: Text -> Handler RepPlain
+postFormatR input = return $ RepPlain $ toContent $ processRequest "format" (unpack input)
+
+postDeformatR :: Text -> Handler RepPlain
+postDeformatR input = return $ RepPlain $ toContent $ processRequest "deformat" (unpack input)
 
 processRequest :: String -> String -> String
 processRequest "format" s   = unsafePerformIO $ callInitFormat s
@@ -121,6 +117,48 @@ tabIndentJS = toWidgetHead [julius|
                 event.preventDefault();
             }
         },false);
+    }
+|]
+
+transformJS :: Widget
+transformJS = toWidgetHead [julius|
+    var isCtrl = false;
+    document.onkeyup = function(event) {
+        if(event.which == 17) isCtrl = false;
+    }
+    document.onkeydown = function(event) {
+        if(event.which == 17) isCtrl = true;
+        if(event.which == 70 && isCtrl == true) {
+            format(document.getElementById("exprField").value);
+            return false;
+        } else if(event.which == 68 && isCtrl == true) {
+            deformat(document.getElementById("exprField").value);
+            return false;
+        }
+    }
+    
+    function format(input) {
+        $.ajax ({
+            type    : "POST",
+            url     : "/format/" + encodeURIComponent(input),
+            dataType: "text"
+        }).done(function(jqXHR) {
+            document.getElementById("exprField").value = jqXHR
+        }).fail(function(jqXHR, textStatus, errorThrown) {
+            alert("Error: " + jqXHR.status + " - " + errorThrown + ". ");
+        });
+    }
+    
+    function deformat(input) {
+        $.ajax ({
+            type    : "POST",
+            url     : "/deformat/" + encodeURIComponent(input),
+            dataType: "text"
+        }).done(function(jqXHR) {
+            document.getElementById("exprField").value = jqXHR
+        }).fail(function(jqXHR, textStatus, errorThrown) {
+            alert("Error: " + jqXHR.status + " - " + errorThrown + ". ");
+        });
     }
 |]
 
