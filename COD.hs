@@ -59,7 +59,6 @@ defaultForm expression = do
     addScriptRemote "http://code.jquery.com/jquery-2.1.3.min.js"
     [whamlet| ^{defaultCSS} |]
     [whamlet| ^{tabIndentJS} |]
-    [whamlet| ^{transformJS} |]
     [whamlet|
         <h1>COD Format Expressions
         <form method=post>
@@ -103,8 +102,23 @@ customLog t s = do
 tabIndentJS :: Widget
 tabIndentJS = toWidgetHead [julius|
     window.onload = function() {
+        var isCtrl = false;
+        document.onkeyup = function(event) {
+            if(event.which == 17) isCtrl = false;
+        }
+        document.onkeydown = function(event) {
+            if(event.which == 17) {
+                isCtrl = true;
+            } else if(event.which == 70 && isCtrl == true) {
+                format(document.getElementById("exprField").value);
+                return false;
+            } else if(event.which == 68 && isCtrl == true) {
+                deformat(document.getElementById("exprField").value);
+                return false;
+            }
+        }
         document.querySelector("textarea").addEventListener('keydown',function(event) {
-            if(event.which == 9) {
+            if(event.which == 9 && !isCtrl) {
                 var start = this.selectionStart;
                 var end = this.selectionEnd;
 
@@ -117,24 +131,6 @@ tabIndentJS = toWidgetHead [julius|
                 event.preventDefault();
             }
         },false);
-    }
-|]
-
-transformJS :: Widget
-transformJS = toWidgetHead [julius|
-    var isCtrl = false;
-    document.onkeyup = function(event) {
-        if(event.which == 17) isCtrl = false;
-    }
-    document.onkeydown = function(event) {
-        if(event.which == 17) isCtrl = true;
-        if(event.which == 70 && isCtrl == true) {
-            format(document.getElementById("exprField").value);
-            return false;
-        } else if(event.which == 68 && isCtrl == true) {
-            deformat(document.getElementById("exprField").value);
-            return false;
-        }
     }
     
     function format(input) {
